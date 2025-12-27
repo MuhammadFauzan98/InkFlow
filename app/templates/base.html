@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}InkFlow - Write Your Story{% endblock %}</title>
+    <title>{% block title %}PostPilot - Write Your Story{% endblock %}</title>
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
@@ -21,7 +21,8 @@
     <nav class="navbar">
         <div class="nav-container">
             <a href="{{ url_for('main.index') }}" class="nav-logo">
-                <span class="logo-text">InkFlow</span>
+                <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="PostPilot logo" class="logo-img" />
+                <span class="logo-text">PostPilot</span>
             </a>
             
             <div class="nav-search">
@@ -160,7 +161,7 @@
         </div>
         
         <div class="footer-bottom">
-            <p>&copy; 2024 InkFlow. All rights reserved.</p>
+            <p>&copy; 2024 PostPilot. All rights reserved.</p>
         </div>
     </footer>
 

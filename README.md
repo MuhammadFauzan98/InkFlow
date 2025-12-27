@@ -1,6 +1,6 @@
-# InkFlow
+# PostPilot
 
-InkFlow is a Flask-based storytelling platform where users can write, share, and explore stories. It supports local auth plus Google OAuth, dark mode, 3D animations, likes, comments, bookmarks, and admin controls.
+PostPilot is a Flask-based storytelling platform where users can write, share, and explore stories. It supports local auth plus Google OAuth, dark mode, 3D animations, likes, comments, bookmarks, and admin controls.
 
 ## Features
 - Write and publish stories with cover images and tags

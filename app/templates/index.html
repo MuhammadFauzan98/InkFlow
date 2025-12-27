@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}InkFlow - Read, Write, Share{% endblock %}
+{% block title %}PostPilot - Read, Write, Share{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
 <section class="hero">
     <div class="hero-content">
-        <h1 class="hero-title">Welcome to InkFlow</h1>
+        <h1 class="hero-title">Welcome to PostPilot</h1>
         <p class="hero-subtitle">Where ideas flow and stories grow. Read, write, and share your voice with the world.</p>
         {% if not current_user.is_authenticated %}
             <div class="hero-actions">
@@ -86,11 +86,11 @@
 <section class="cta-section">
     <div class="cta-content" style="text-align: center;">
         <h2 class="cta-title">Ready to share your story?</h2>
-        <p class="cta-text">Join thousands of writers sharing their ideas on InkFlow.</p>
+        <p class="cta-text">Join thousands of writers sharing their ideas on PostPilot.</p>
         {% if current_user.is_authenticated %}
             <a href="{{ url_for('main.editor') }}" class="btn btn-primary btn-large">Start Writing Now</a>
         {% else %}
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Join InkFlow</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Join PostPilot</a>
         {% endif %}
     </div>
 </section>
