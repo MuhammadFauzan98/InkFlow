@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}{{ blog.title }} | InkFlow{% endblock %}
+
+{% block content %}
+<div class="blog-container">
+    <!-- Reading Progress -->
+    <div class="reading-progress" id="readingProgress">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <article class="blog-article">
+        <!-- Blog Header -->
+        <header class="blog-header">
+            <div class="blog-category">
+                {% if blog.tags %}
+                    {% for tag in blog.tags.split(',')[:2] %}
+                        <a href="{{ url_for('main.search') }}?q={{ tag.strip() }}" class="category-tag">{{ tag.strip() }}</a>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <h1 class="blog-title">{{ blog.title }}</h1>
+            
+            <div class="blog-meta-large">
+                <div class="author-info">
+                    <img src="{{ url_for('static', filename=avatar_url(blog.author)) }}" 
+                         alt="{{ blog.author.username }}" class="author-avatar-large">
+                    <div class="author-details">
+                        <a href="{{ url_for('main.profile', username=blog.author.username) }}" 
+                           class="author-name-large">{{ blog.author.username }}</a>
+                        <div class="meta-info">
+                            <span class="blog-date">{{ format_date(blog.created_at, '%B %d, %Y') }}</span>
+                            <span class="meta-dot">•</span>
+                            <span class="reading-time">{{ estimate_reading_time(blog.content) }} min read</span>
+                            <span class="meta-dot">•</span>
+                            <span class="views-count">{{ blog.views }} views</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="blog-actions">
+                    {% if current_user.is_authenticated %}
+                        <button class="action-btn like-btn {% if is_liked %}liked{% endif %}" 
+                                data-blog-id="{{ blog.id }}">
+                            <span class="action-count" id="likeCount">{{ blog.likes.count() }}</span> Like
+                        </button>
+                        
+                        <button class="action-btn bookmark-btn {% if is_bookmarked %}bookmarked{% endif %}" 
+                                data-blog-id="{{ blog.id }}">
+                            Save
+                        </button>
+                    {% endif %}
+                    
+                    {% if current_user.is_authenticated and (current_user.id == blog.author_id or current_user.is_admin()) %}
+                        <a href="{{ url_for('main.editor', blog_id=blog.id) }}" class="action-btn edit-btn">
+                            Edit
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if blog.cover_image %}
+            <div class="blog-cover">
+                <img src="{{ url_for('static', filename='uploads/' + blog.cover_image) }}" 
+                     alt="{{ blog.title }}">
+            </div>
+            {% endif %}
+        </header>
+
+        <!-- Blog Content -->
+        <div class="blog-content">
+            {{ blog.content_html|safe }}
+        </div>
+
+        <!-- Blog Footer -->
+        <footer class="blog-footer">
+            <div class="tags-section">
+                <h4>Tags</h4>
+                <div class="tags-list">
+                    {% if blog.tags %}
+                        {% for tag in blog.tags.split(',') %}
+                            <a href="{{ url_for('main.search') }}?q={{ tag.strip() }}" class="tag-large">{{ tag.strip() }}</a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="share-section">
+                <h4>Share this story</h4>
+                <div class="share-buttons">
+                    <button class="share-btn twitter" onclick="shareOnTwitter()">Twitter</button>
+                    <button class="share-btn linkedin" onclick="shareOnLinkedIn()">LinkedIn</button>
+                    <button class="share-btn copy" onclick="copyLink()">Copy Link</button>
+                </div>
+            </div>
+            
+            <div class="author-card">
+                 <img src="{{ url_for('static', filename=avatar_url(blog.author)) }}" 
+                     alt="{{ blog.author.username }}" class="author-avatar-card">
+                <div class="author-card-content">
+                    <h3>Written by {{ blog.author.username }}</h3>
+                    <p>{{ blog.author.bio or 'No bio yet.' }}</p>
+                    <a href="{{ url_for('main.profile', username=blog.author.username) }}" 
+                       class="author-profile-link">View Profile</a>
+                </div>
+            </div>
+        </footer>
+    </article>
+
+    <!-- Comments Section -->
+    <section class="comments-section" id="comments">
+        <div class="comments-header">
+            <h3>Comments ({{ blog.comments.count() }})</h3>
+        </div>
+        
+        {% if current_user.is_authenticated %}
+        <div class="comment-form">
+            <form id="commentForm" data-blog-id="{{ blog.id }}">
+                <textarea id="commentContent" placeholder="Share your thoughts..." rows="3"></textarea>
+                <div class="comment-form-actions">
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="login-prompt">
+            <p><a href="{{ url_for('auth.login') }}">Sign in</a> to join the conversation.</p>
+        </div>
+        {% endif %}
+        
+        <div class="comments-list" id="commentsList">
+            <!-- Comments loaded via JavaScript -->
+        </div>
+        
+        <div class="comments-loading" id="commentsLoading">
+            Loading comments...
+        </div>
+        
+        {% if blog.comments.count() > 10 %}
+        <div class="load-more">
+            <button id="loadMoreComments" class="btn btn-outline">Load More Comments</button>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Related Stories -->
+    {% if related_blogs %}
+    <section class="related-section">
+        <h3>Related Stories</h3>
+        <div class="related-grid">
+            {% for related in related_blogs %}
+            <article class="related-card">
+                <h4 class="related-title">
+                    <a href="{{ url_for('main.blog', slug=related.slug) }}">{{ related.title }}</a>
+                </h4>
+                <div class="related-meta">
+                    <span class="author-name">{{ related.author.username }}</span>
+                    <span class="meta-dot">•</span>
+                    <span class="reading-time">{{ estimate_reading_time(related.content) }} min read</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Reading progress
+window.addEventListener('scroll', function() {
+    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const scrolled = (winScroll / height) * 100;
+    document.getElementById('progressBar').style.width = scrolled + '%';
+});
+
+// Like functionality
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const blogId = this.dataset.blogId;
+        const response = await fetch(`/api/like/${blogId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            this.classList.toggle('liked');
+            document.getElementById('likeCount').textContent = data.like_count;
+        }
+    });
+});
+
+// Bookmark functionality
+document.querySelectorAll('.bookmark-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const blogId = this.dataset.blogId;
+        const response = await fetch(`/api/bookmark/${blogId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            this.classList.toggle('bookmarked');
+        }
+    });
+});
+
+// Comment functionality
+document.getElementById('commentForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const content = document.getElementById('commentContent').value.trim();
+    const blogId = this.dataset.blogId;
+    
+    if (!content) return;
+    
+    const response = await fetch(`/api/comment/${blogId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content }),
+        credentials: 'include'
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+        document.getElementById('commentContent').value = '';
+        loadComments(blogId, 1);
+    }
+});
+
+// Load comments
+let currentCommentPage = 1;
+async function loadComments(blogId, page) {
+    const response = await fetch(`/api/comments/${blogId}?page=${page}`);
+    const data = await response.json();
+    
+    if (data.success) {
+        const commentsList = document.getElementById('commentsList');
+        if (page === 1) commentsList.innerHTML = '';
+        
+        data.comments.forEach(comment => {
+            const commentEl = document.createElement('div');
+            commentEl.className = 'comment-item';
+            commentEl.innerHTML = `
+                <div class="comment-header">
+                    <img src="${comment.user.avatar_url}" 
+                         alt="${comment.user.username}" class="comment-avatar">
+                    <div class="comment-author">
+                        <strong>${comment.user.username}</strong>
+                        <span>${new Date(comment.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+                <div class="comment-content">
+                    ${comment.content.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            commentsList.appendChild(commentEl);
+        });
+        
+        currentCommentPage = page;
+        document.getElementById('commentsLoading').style.display = 'none';
+        
+        if (!data.has_next) {
+            document.getElementById('loadMoreComments')?.remove();
+        }
+    }
+}
+
+// Load comments on page load
+window.addEventListener('DOMContentLoaded', () => {
+    const blogId = document.querySelector('[data-blog-id]')?.dataset.blogId;
+    if (blogId) {
+        loadComments(blogId, 1);
+    }
+});
+
+// Load more comments
+document.getElementById('loadMoreComments')?.addEventListener('click', () => {
+    const blogId = document.querySelector('[data-blog-id]')?.dataset.blogId;
+    if (blogId) {
+        loadComments(blogId, currentCommentPage + 1);
+    }
+});
+
+// Share functionality
+function shareOnTwitter() {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent("Check out this article on InkFlow!");
+    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+}
+
+function shareOnLinkedIn() {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
+}
+
+function copyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+        alert('Link copied to clipboard!');
+    });
+}
+</script>
+{% endblock %}

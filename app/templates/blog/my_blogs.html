@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}My Stories | InkFlow{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="page-header">
+        <h1>My Stories</h1>
+        <a href="{{ url_for('main.editor') }}" class="btn btn-primary">
+            Write New Story
+        </a>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <a href="{{ url_for('main.my_blogs') }}" 
+           class="filter-tab {% if request.args.get('status', 'all') == 'all' %}active{% endif %}">
+            All ({{ current_user.blogs.count() }})
+        </a>
+        <a href="{{ url_for('main.my_blogs') }}?status=published" 
+           class="filter-tab {% if request.args.get('status') == 'published' %}active{% endif %}">
+            Published ({{ current_user.blogs.filter_by(status='published').count() }})
+        </a>
+        <a href="{{ url_for('main.my_blogs') }}?status=draft" 
+           class="filter-tab {% if request.args.get('status') == 'draft' %}active{% endif %}">
+            Drafts ({{ current_user.blogs.filter_by(status='draft').count() }})
+        </a>
+        <a href="{{ url_for('main.my_blogs') }}?status=featured" 
+           class="filter-tab {% if request.args.get('status') == 'featured' %}active{% endif %}">
+            Featured ({{ current_user.blogs.filter_by(featured=True).count() }})
+        </a>
+    </div>
+
+    {% if blogs.items %}
+    <div class="my-blogs-list">
+        {% for blog in blogs.items %}
+        <div class="my-blog-card">
+            <div class="blog-info">
+                <div class="blog-header">
+                    <h3>
+                        <a href="{% if blog.status == 'published' %}{{ url_for('main.blog', slug=blog.slug) }}{% else %}{{ url_for('main.editor', blog_id=blog.id) }}{% endif %}">
+                            {{ blog.title or 'Untitled' }}
+                        </a>
+                    </h3>
+                    <div class="blog-meta">
+                        <span class="status-badge status-{{ blog.status }}">
+                            {{ blog.status|title }}
+                        </span>
+                        {% if blog.featured %}
+                        <span class="featured-badge">Featured</span>
+                        {% endif %}
+                        <span class="blog-date">{{ format_date(blog.updated_at, '%b %d, %Y') }}</span>
+                        <span class="reading-time">{{ estimate_reading_time(blog.content) }} min read</span>
+                    </div>
+                </div>
+                
+                <p class="blog-excerpt">{{ excerpt(blog.content, 200) }}</p>
+                
+                <div class="blog-footer">
+                    <div class="blog-tags">
+                        {% if blog.tags %}
+                            {% for tag in blog.tags.split(',')[:3] %}
+                                <span class="tag">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="blog-stats">
+                        {% if blog.status == 'published' %}
+                        <span class="stat">Views {{ blog.views }}</span>
+                        <span class="stat">Likes {{ blog.likes.count() }}</span>
+                        <span class="stat">Comments {{ blog.comments.count() }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="blog-actions">
+                <a href="{{ url_for('main.editor', blog_id=blog.id) }}" 
+                   class="action-btn" title="Edit">
+                    Edit
+                </a>
+                {% if blog.status == 'published' %}
+                <a href="{{ url_for('main.blog', slug=blog.slug) }}" 
+                   class="action-btn" title="View">
+                    View
+                </a>
+                {% endif %}
+                <form method="POST" action="{{ url_for('main.delete_blog', blog_id=blog.id) }}" 
+                      onsubmit="return confirm('Delete this story? This action cannot be undone.');"
+                      style="display: inline;">
+                    <button type="submit" class="action-btn danger" title="Delete">
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if blogs.pages > 1 %}
+    <div class="pagination">
+        {% if blogs.has_prev %}
+            <a href="{{ url_for('main.my_blogs', page=blogs.prev_num, status=request.args.get('status', '')) }}" 
+               class="pagination-link">Previous</a>
+        {% endif %}
+        
+        {% for page_num in blogs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=3) %}
+            {% if page_num %}
+                {% if page_num == blogs.page %}
+                    <span class="pagination-current">{{ page_num }}</span>
+                {% else %}
+                    <a href="{{ url_for('main.my_blogs', page=page_num, status=request.args.get('status', '')) }}" 
+                       class="pagination-link">{{ page_num }}</a>
+                {% endif %}
+            {% else %}
+                <span class="pagination-ellipsis">...</span>
+            {% endif %}
+        {% endfor %}
+        
+        {% if blogs.has_next %}
+            <a href="{{ url_for('main.my_blogs', page=blogs.next_num, status=request.args.get('status', '')) }}" 
+               class="pagination-link">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon"></div>
+        <h3>No stories yet</h3>
+        <p>Start writing your first story and share your ideas with the world.</p>
+        <a href="{{ url_for('main.editor') }}" class="btn btn-primary">
+            Write Your First Story
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filter-tab {
+    padding: 0.5rem 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--border-radius-md);
+    transition: all 0.2s;
+}
+
+.filter-tab:hover {
+    background-color: var(--surface-color);
+    color: var(--text-primary);
+}
+
+.filter-tab.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.my-blogs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.my-blog-card {
+    display: flex;
+    justify-content: space-between;
+    padding: 1.5rem;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s;
+}
+
+.my-blog-card:hover {
+    border-color: var(--primary-color);
+}
+
+.blog-info {
+    flex: 1;
+}
+
+.blog-header {
+    margin-bottom: 1rem;
+}
+
+.blog-header h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+}
+
+.blog-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.featured-badge {
+    color: #ffd700;
+    font-weight: 500;
+}
+
+.blog-excerpt {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.blog-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.blog-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.blog-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.stat {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.blog-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-left: 1.5rem;
+    min-width: 120px;
+}
+
+.action-btn {
+    padding: 0.5rem 1rem;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    text-decoration: none;
+    text-align: center;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background-color: var(--surface-color);
+    border-color: var(--primary-color);
+}
+
+.action-btn.danger {
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+.action-btn.danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    border: 2px dashed var(--border-color);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .my-blog-card {
+        flex-direction: column;
+    }
+    
+    .blog-actions {
+        margin-left: 0;
+        margin-top: 1rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .blog-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}

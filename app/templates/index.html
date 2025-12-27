@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}InkFlow - Read, Write, Share{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">Welcome to InkFlow</h1>
+        <p class="hero-subtitle">Where ideas flow and stories grow. Read, write, and share your voice with the world.</p>
+        {% if not current_user.is_authenticated %}
+            <div class="hero-actions">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Start Writing</a>
+            </div>
+        {% else %}
+            <div class="hero-actions">
+                <a href="{{ url_for('main.editor') }}" class="btn btn-primary btn-large">Write a Story</a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline btn-large">Your Dashboard</a>
+            </div>
+        {% endif %}
+        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+            <a href="{{ url_for('main.recent_stories') }}" class="btn btn-outline">Browse Recent Stories</a>
+            <a href="{{ url_for('main.popular_stories') }}" class="btn btn-outline">Browse Popular Stories</a>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Stories -->
+{% if featured_blogs %}
+<section class="featured-section">
+    <div class="section-header">
+        <h2 class="section-title">Featured Stories</h2>
+        <a href="{{ url_for('main.search') }}?q=featured" class="section-link">View all</a>
+    </div>
+    
+    <div class="featured-grid">
+        {% for blog in featured_blogs %}
+        <article class="featured-card">
+            {% if blog.cover_image %}
+            <div class="featured-image">
+                <img src="{{ url_for('static', filename='uploads/' + blog.cover_image) }}" alt="{{ blog.title }}">
+            </div>
+            {% endif %}
+            <div class="featured-content">
+                <div class="blog-meta">
+                    <img src="{{ url_for('static', filename=avatar_url(blog.author)) }}" 
+                         alt="{{ blog.author.username }}" class="author-avatar">
+                    <span class="author-name">{{ blog.author.username }}</span>
+                    <span class="meta-dot">•</span>
+                    <span class="blog-date">{{ format_date(blog.created_at) }}</span>
+                    <span class="meta-dot">•</span>
+                    <span class="reading-time">{{ estimate_reading_time(blog.content) }} min read</span>
+                </div>
+                <h3 class="featured-title">
+                    <a href="{{ url_for('main.blog', slug=blog.slug) }}">{{ blog.title }}</a>
+                </h3>
+                <p class="featured-excerpt">{{ blog.excerpt or excerpt(blog.content, 150) }}</p>
+                <div class="blog-tags">
+                    {% if blog.tags %}
+                        {% for tag in blog.tags.split(',')[:3] %}
+                            <a href="{{ url_for('main.search') }}?q={{ tag.strip() }}" class="tag">{{ tag.strip() }}</a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="blog-stats">
+                    <span class="stat">👁 {{ blog.views }}</span>
+                    {% if current_user.is_authenticated %}
+                        <button class="stat-btn like-btn {% if blog.likes.filter_by(user_id=current_user.id).first() %}liked{% endif %}" 
+                                data-blog-id="{{ blog.id }}" 
+                                title="Like this story">
+                            ❤ <span class="like-count">{{ blog.likes.count() }}</span>
+                        </button>
+                    {% else %}
+                        <span class="stat">❤ {{ blog.likes.count() }}</span>
+                    {% endif %}
+                    <a href="{{ url_for('main.blog', slug=blog.slug) }}#comments" class="stat-link">💬 {{ blog.comments.count() }}</a>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="cta-content" style="text-align: center;">
+        <h2 class="cta-title">Ready to share your story?</h2>
+        <p class="cta-text">Join thousands of writers sharing their ideas on InkFlow.</p>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.editor') }}" class="btn btn-primary btn-large">Start Writing Now</a>
+        {% else %}
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Join InkFlow</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Like functionality
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const blogId = this.dataset.blogId;
+        const response = await fetch(`/api/like/${blogId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            this.classList.toggle('liked');
+            this.querySelector('.like-count').textContent = data.like_count;
+        }
+    });
+});
+</script>
+{% endblock %}

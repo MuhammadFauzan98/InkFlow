@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Recent Stories - InkFlow{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<section class="page-header">
+    <div class="container">
+        <h1 class="page-title">Recent Stories</h1>
+        <p class="page-subtitle">Discover the latest stories from our community</p>
+    </div>
+</section>
+
+<!-- Recent Stories -->
+<section class="recent-section">
+    <div class="container">
+        <div class="recent-grid">
+            {% for blog in recent_blogs.items %}
+            <article class="recent-card">
+                <div class="recent-content">
+                    <div class="blog-meta">
+                        <img src="{{ url_for('static', filename=avatar_url(blog.author)) }}" 
+                             alt="{{ blog.author.username }}" class="author-avatar">
+                        <span class="author-name">{{ blog.author.username }}</span>
+                        <span class="meta-dot">•</span>
+                        <span class="blog-date">{{ format_date(blog.created_at) }}</span>
+                        <span class="meta-dot">•</span>
+                        <span class="reading-time">{{ estimate_reading_time(blog.content) }} min read</span>
+                    </div>
+                    <h3 class="recent-title">
+                        <a href="{{ url_for('main.blog', slug=blog.slug) }}">{{ blog.title }}</a>
+                    </h3>
+                    <p class="recent-excerpt">{{ excerpt(blog.content, 150) }}</p>
+                    <div class="recent-footer">
+                        <div class="blog-tags">
+                            {% if blog.tags %}
+                                {% for tag in blog.tags.split(',')[:3] %}
+                                    <a href="{{ url_for('main.search') }}?q={{ tag.strip() }}" class="tag">{{ tag.strip() }}</a>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="blog-stats">
+                            <span class="stat">👁 {{ blog.views }}</span>
+                            {% if current_user.is_authenticated %}
+                                <button class="stat-btn like-btn {% if blog.likes.filter_by(user_id=current_user.id).first() %}liked{% endif %}" 
+                                        data-blog-id="{{ blog.id }}" 
+                                        title="Like this story">
+                                    ❤ <span class="like-count">{{ blog.likes.count() }}</span>
+                                </button>
+                            {% else %}
+                                <span class="stat">❤ {{ blog.likes.count() }}</span>
+                            {% endif %}
+                            <a href="{{ url_for('main.blog', slug=blog.slug) }}#comments" class="stat-link">💬 {{ blog.comments.count() }}</a>
+                        </div>
+                    </div>
+                </div>
+                {% if blog.cover_image %}
+                <div class="recent-image">
+                    <img src="{{ url_for('static', filename='uploads/' + blog.cover_image) }}" alt="{{ blog.title }}">
+                </div>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+
+        <!-- Empty State -->
+        {% if not recent_blogs.items %}
+        <div class="empty-state">
+            <h3>No stories yet</h3>
+            <p>Be the first to share your story!</p>
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.editor') }}" class="btn btn-primary">Write a Story</a>
+            {% else %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Get Started</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Pagination -->
+        {% if recent_blogs.pages > 1 %}
+        <div class="pagination">
+            {% if recent_blogs.has_prev %}
+                <a href="{{ url_for('main.recent_stories', page=recent_blogs.prev_num) }}" class="pagination-link">Previous</a>
+            {% endif %}
+            
+            {% for page_num in recent_blogs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=3) %}
+                {% if page_num %}
+                    {% if page_num == recent_blogs.page %}
+                        <span class="pagination-current">{{ page_num }}</span>
+                    {% else %}
+                        <a href="{{ url_for('main.recent_stories', page=page_num) }}" class="pagination-link">{{ page_num }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if recent_blogs.has_next %}
+                <a href="{{ url_for('main.recent_stories', page=recent_blogs.next_num) }}" class="pagination-link">Next</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="cta-content">
+        <h2 class="cta-title">Have a story to tell?</h2>
+        <p class="cta-text">Join our community and share your voice with the world.</p>
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.editor') }}" class="btn btn-primary btn-large">Start Writing Now</a>
+        {% else %}
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Join InkFlow</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Like functionality
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const blogId = this.dataset.blogId;
+        const response = await fetch(`/api/like/${blogId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            this.classList.toggle('liked');
+            this.querySelector('.like-count').textContent = data.like_count;
+        }
+    });
+});
+</script>
+{% endblock %}

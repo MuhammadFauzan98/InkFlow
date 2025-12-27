@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users | InkFlow Admin{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>Manage Users</h1>
+        <div class="admin-actions">
+            <form method="GET" class="search-form">
+                <input type="text" name="q" placeholder="Search users..." 
+                       value="{{ request.args.get('q', '') }}" class="form-input">
+                <button type="submit" class="btn btn-outline">Search</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="admin-content">
+        <div class="admin-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Blogs</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users.items %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <div class="user-cell">
+                                  <img src="{{ url_for('static', filename=avatar_url(user)) }}" 
+                                     alt="{{ user.username }}" class="user-avatar-sm">
+                                <a href="{{ url_for('main.profile', username=user.username) }}">
+                                    {{ user.username }}
+                                </a>
+                            </div>
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.update_role', user_id=user.id) }}" 
+                                  class="role-form">
+                                <select name="role" class="role-select" 
+                                        onchange="this.form.submit()"
+                                        {% if user.id == current_user.id %}disabled{% endif %}>
+                                    <option value="reader" {% if user.role == 'reader' %}selected{% endif %}>
+                                        Reader
+                                    </option>
+                                    <option value="writer" {% if user.role == 'writer' %}selected{% endif %}>
+                                        Writer
+                                    </option>
+                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>
+                                        Admin
+                                    </option>
+                                </select>
+                            </form>
+                        </td>
+                        <td>{{ user.blogs.count() }}</td>
+                        <td>{{ format_date(user.created_at, '%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{{ url_for('main.profile', username=user.username) }}" 
+                                   class="action-icon" title="View Profile">
+                                    View
+                                </a>
+                                {% if user.id != current_user.id %}
+                                <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}" 
+                                      onsubmit="return confirm('Delete this user? This will also delete all their blogs and comments.');"
+                                      style="display: inline;">
+                                    <button type="submit" class="action-icon danger" title="Delete User">
+                                        Delete
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if users.pages > 1 %}
+        <div class="pagination">
+            {% if users.has_prev %}
+                <a href="{{ url_for('admin.manage_users', page=users.prev_num, q=request.args.get('q', '')) }}" 
+                   class="pagination-link">Previous</a>
+            {% endif %}
+            
+            {% for page_num in users.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=3) %}
+                {% if page_num %}
+                    {% if page_num == users.page %}
+                        <span class="pagination-current">{{ page_num }}</span>
+                    {% else %}
+                        <a href="{{ url_for('admin.manage_users', page=page_num, q=request.args.get('q', '')) }}" 
+                           class="pagination-link">{{ page_num }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if users.has_next %}
+                <a href="{{ url_for('admin.manage_users', page=users.next_num, q=request.args.get('q', '')) }}" 
+                   class="pagination-link">Next</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Stats -->
+        <div class="admin-stats-row">
+            <div class="stat-box">
+                <h3>Total Users</h3>
+                <p class="stat-number">{{ users.total }}</p>
+            </div>
+            <div class="stat-box">
+                <h3>Readers</h3>
+                <p class="stat-number">{{ users.items|selectattr('role', 'equalto', 'reader')|list|length }}</p>
+            </div>
+            <div class="stat-box">
+                <h3>Writers</h3>
+                <p class="stat-number">{{ users.items|selectattr('role', 'equalto', 'writer')|list|length }}</p>
+            </div>
+            <div class="stat-box">
+                <h3>Admins</h3>
+                <p class="stat-number">{{ users.items|selectattr('role', 'equalto', 'admin')|list|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-avatar-sm {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.role-form {
+    display: inline;
+}
+
+.role-select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+}
+
+.role-select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.search-form {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.stat-box {
+    text-align: center;
+    padding: 1rem;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-md);
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.action-icon.danger {
+    color: var(--error-color);
+}
+
+.action-icon.danger:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}{% if blog %}Edit: {{ blog.title }}{% else %}New Story | InkFlow{% endif %}{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <div class="editor-header">
+        <h1>{% if blog %}Edit Story{% else %}Write a New Story{% endif %}</h1>
+        <div class="editor-actions">
+            <button id="saveDraft" class="btn btn-outline">Save Draft</button>
+            <button id="previewBtn" class="btn btn-outline">Preview</button>
+            <button id="publishBtn" class="btn btn-primary">Publish</button>
+        </div>
+    </div>
+
+    <form id="blogForm" method="POST">
+        <input type="hidden" name="blog_id" value="{{ blog.id if blog else '' }}">
+        
+        <div class="editor-main">
+            <!-- Title Input -->
+            <div class="title-input">
+                <textarea id="title" name="title" placeholder="Title" 
+                          autofocus>{{ blog.title if blog else '' }}</textarea>
+            </div>
+            
+            <!-- Toolbar -->
+            <div class="editor-toolbar" id="toolbar">
+                <button type="button" data-command="bold" title="Bold">
+                    <strong>B</strong>
+                </button>
+                <button type="button" data-command="italic" title="Italic">
+                    <em>I</em>
+                </button>
+                <button type="button" data-command="heading" title="Heading">
+                    H1
+                </button>
+                <button type="button" data-command="quote" title="Quote">
+                    ❝
+                </button>
+                <button type="button" data-command="code" title="Code Block">
+                    &lt;/&gt;
+                </button>
+                <button type="button" data-command="link" title="Link">
+                    🔗
+                </button>
+                <button type="button" data-command="image" title="Image">
+                    🖼️
+                </button>
+                <button type="button" data-command="ul" title="Bullet List">
+                    • List
+                </button>
+                <button type="button" data-command="ol" title="Numbered List">
+                    1. List
+                </button>
+            </div>
+            
+            <!-- Content Editor -->
+            <div class="content-editor">
+                <textarea id="content" name="content" placeholder="Tell your story..." 
+                          rows="20">{{ blog.content if blog else '' }}</textarea>
+                <div class="editor-stats">
+                    <span id="wordCount">0 words</span>
+                    <span id="readingTime">0 min read</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="editor-sidebar">
+            <!-- Status -->
+            <div class="sidebar-section">
+                <h3>Status</h3>
+                <select name="status" id="status" class="form-select">
+                    <option value="draft" {% if blog and blog.status == 'draft' %}selected{% endif %}>
+                        Draft
+                    </option>
+                    <option value="published" {% if blog and blog.status == 'published' %}selected{% endif %}>
+                        Published
+                    </option>
+                </select>
+            </div>
+            
+            <!-- Tags -->
+            <div class="sidebar-section">
+                <h3>Tags</h3>
+                <input type="text" id="tags" name="tags" 
+                       value="{{ blog.tags if blog else '' }}"
+                       placeholder="technology, programming, web"
+                       class="form-input">
+                <p class="help-text">Separate with commas</p>
+            </div>
+            
+            <!-- Excerpt -->
+            <div class="sidebar-section">
+                <h3>Excerpt</h3>
+                <textarea id="excerpt" name="excerpt" rows="3" 
+                          placeholder="Brief summary...">{{ blog.excerpt if blog else '' }}</textarea>
+                <p class="help-text">Optional. If empty, first 200 characters will be used.</p>
+            </div>
+            
+            <!-- Cover Image -->
+            <div class="sidebar-section">
+                <h3>Cover Image</h3>
+                <div class="image-upload">
+                    <input type="file" id="coverImage" accept="image/*" class="form-input">
+                    <button type="button" id="uploadImage" class="btn btn-small">Upload</button>
+                    <input type="hidden" id="coverImagePath" name="cover_image" 
+                           value="{{ blog.cover_image if blog else '' }}">
+                </div>
+                {% if blog and blog.cover_image %}
+                <div class="current-image">
+                    <img src="{{ url_for('static', filename='uploads/' + blog.cover_image) }}" 
+                         alt="Current cover">
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Auto-save Status -->
+            <div class="sidebar-section">
+                <div class="autosave-status" id="autosaveStatus">
+                    <span class="status-icon">💾</span>
+                    <span id="autosaveText">All changes saved</span>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Preview Modal -->
+<div class="preview-modal" id="previewModal">
+    <div class="preview-content">
+        <div class="preview-header">
+            <h2>Preview</h2>
+            <button class="close-preview" onclick="closePreview()">Close</button>
+        </div>
+        <div class="preview-body" id="previewBody">
+            <!-- Preview content will be inserted here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script>
+// Auto-save functionality
+let autoSaveTimer;
+let isSaving = false;
+let lastSavedContent = '';
+
+function startAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(saveDraft, 30000); // Save every 30 seconds
+}
+
+async function saveDraft() {
+    if (isSaving) return;
+    
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+    const blogId = document.querySelector('input[name="blog_id"]')?.value;
+    
+    if (!title && !content) return;
+    
+    isSaving = true;
+    updateSaveStatus('Saving...');
+    
+    try {
+        const response = await fetch('/api/autosave', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                blog_id: blogId || null,
+                title: title,
+                content: content
+            }),
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            updateSaveStatus('All changes saved');
+            lastSavedContent = content;
+            
+            // Update blog_id if new draft was created
+            if (!blogId && data.blog_id) {
+                const input = document.querySelector('input[name="blog_id"]');
+                if (!input) {
+                    const form = document.getElementById('blogForm');
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'blog_id';
+                    hiddenInput.value = data.blog_id;
+                    form.appendChild(hiddenInput);
+                }
+            }
+        }
+    } catch (error) {
+        updateSaveStatus('Failed to save');
+    } finally {
+        isSaving = false;
+    }
+}
+
+function updateSaveStatus(message) {
+    const statusElement = document.getElementById('autosaveText');
+    const statusIcon = document.querySelector('.status-icon');
+    
+    statusElement.textContent = message;
+    
+    if (message === 'Saving...') {
+        statusIcon.textContent = '⏳';
+        statusElement.classList.add('saving');
+    } else if (message === 'All changes saved') {
+        statusIcon.textContent = '💾';
+        statusElement.classList.remove('saving');
+    } else {
+        statusIcon.textContent = '⚠️';
+        statusElement.classList.add('error');
+    }
+}
+
+// Word count and reading time
+function updateStats() {
+    const content = document.getElementById('content').value;
+    const words = content.trim().split(/\s+/).filter(word => word.length > 0).length;
+    const minutes = Math.ceil(words / 200);
+    
+    document.getElementById('wordCount').textContent = `${words} words`;
+    document.getElementById('readingTime').textContent = `${minutes} min read`;
+}
+
+// Event listeners
+document.getElementById('title').addEventListener('input', startAutoSave);
+document.getElementById('content').addEventListener('input', () => {
+    startAutoSave();
+    updateStats();
+});
+
+// Initial stats
+updateStats();
+
+// Save draft button
+document.getElementById('saveDraft').addEventListener('click', () => {
+    document.getElementById('status').value = 'draft';
+    document.getElementById('blogForm').submit();
+});
+
+// Publish button
+document.getElementById('publishBtn').addEventListener('click', () => {
+    document.getElementById('status').value = 'published';
+    document.getElementById('blogForm').submit();
+});
+
+// Preview button
+document.getElementById('previewBtn').addEventListener('click', () => {
+    const title = document.getElementById('title').value;
+    const content = document.getElementById('content').value;
+    
+    if (!title && !content) {
+        alert('Please add some content to preview.');
+        return;
+    }
+    
+    // Simple markdown preview (in a real app, use a proper markdown parser)
+    let htmlContent = content
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    
+    document.getElementById('previewBody').innerHTML = `
+        <h1>${title}</h1>
+        <div class="preview-content">${htmlContent}</div>
+    `;
+    
+    document.getElementById('previewModal').style.display = 'flex';
+});
+
+function closePreview() {
+    document.getElementById('previewModal').style.display = 'none';
+}
+
+// Image upload
+document.getElementById('uploadImage')?.addEventListener('click', async () => {
+    const fileInput = document.getElementById('coverImage');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select an image first.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('coverImagePath').value = data.filename;
+            updateSaveStatus('Image uploaded');
+        }
+    } catch (error) {
+        updateSaveStatus('Upload failed');
+    }
+});
+
+// Save before leaving page
+window.addEventListener('beforeunload', (e) => {
+    const content = document.getElementById('content').value;
+    const title = document.getElementById('title').value;
+    
+    if ((content !== lastSavedContent || title) && !isSaving) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+    }
+});
+</script>
+{% endblock %}

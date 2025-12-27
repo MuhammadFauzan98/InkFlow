@@ -1,0 +1,46 @@
+[data-theme="dark"] {
+    /* Colors - Dark Theme */
+    --primary-color: #2ecc71;
+    --primary-hover: #27ae60;
+    --secondary-color: #95a5a6;
+    --background-color: #1a1a1a;
+    --surface-color: #2d2d2d;
+    --border-color: #404040;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-muted: #808080;
+    
+    /* Override specific elements */
+    .navbar {
+        background-color: rgba(26, 26, 26, 0.95);
+    }
+    
+    .hero {
+        background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+    }
+    
+    .featured-card, .recent-card, .popular-card,
+    .stat-card, .action-btn, .bookmark-item,
+    .admin-stat-card, .admin-action-btn {
+        background-color: var(--surface-color);
+        border-color: var(--border-color);
+    }
+    
+    .search-input, .form-input, .form-select, .form-textarea {
+        background-color: var(--surface-color);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    
+    .search-input::placeholder, .form-input::placeholder {
+        color: var(--text-muted);
+    }
+    
+    .preview-content {
+        background-color: var(--surface-color);
+    }
+    
+    .footer {
+        background-color: var(--surface-color);
+    }
+}

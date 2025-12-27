@@ -1,0 +1,640 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} | InkFlow{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-avatar">
+              <img src="{{ url_for('static', filename=avatar_url(user)) }}" 
+                 alt="{{ user.username }}" class="avatar-xl">
+            {% if current_user.is_authenticated and current_user.id == user.id %}
+            <button class="avatar-edit-btn" onclick="openAvatarEditor()">
+                Edit
+            </button>
+            {% endif %}
+        </div>
+        
+        <div class="profile-info">
+            <h1 class="profile-name">{{ user.username }}</h1>
+            
+            {% if user.bio %}
+            <p class="profile-bio">{{ user.bio }}</p>
+            {% endif %}
+            
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <span class="stat-number">{{ total_blogs }}</span>
+                    <span class="stat-label">Stories</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ total_likes }}</span>
+                    <span class="stat-label">Likes</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ user.comments.count() }}</span>
+                    <span class="stat-label">Comments</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{{ format_date(user.created_at, '%Y') }}</span>
+                    <span class="stat-label">Joined</span>
+                </div>
+            </div>
+            
+            {% if current_user.is_authenticated and current_user.id == user.id %}
+            <div class="profile-actions">
+                <a href="{{ url_for('main.editor') }}" class="btn btn-primary">
+                    Write a Story
+                </a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">
+                    Dashboard
+                </a>
+                <button class="btn btn-outline" onclick="openBioEditor()">
+                    Edit Profile
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- User's Published Stories -->
+    <div class="profile-content">
+        <div class="content-section">
+            <h2 class="section-title">Published Stories</h2>
+            
+            {% if published_blogs %}
+            <div class="stories-grid">
+                {% for blog in published_blogs %}
+                <article class="story-card">
+                    {% if blog.cover_image %}
+                    <div class="story-image">
+                        <img src="{{ url_for('static', filename='uploads/' + blog.cover_image) }}" 
+                             alt="{{ blog.title }}">
+                    </div>
+                    {% endif %}
+                    
+                    <div class="story-content">
+                        <div class="story-meta">
+                            <span class="story-date">{{ format_date(blog.created_at) }}</span>
+                            <span class="meta-dot">•</span>
+                            <span class="reading-time">{{ estimate_reading_time(blog.content) }} min read</span>
+                        </div>
+                        
+                        <h3 class="story-title">
+                            <a href="{{ url_for('main.blog', slug=blog.slug) }}">{{ blog.title }}</a>
+                        </h3>
+                        
+                        <p class="story-excerpt">{{ excerpt(blog.content, 150) }}</p>
+                        
+                        <div class="story-footer">
+                            <div class="story-tags">
+                                {% if blog.tags %}
+                                    {% for tag in blog.tags.split(',')[:2] %}
+                                        <a href="{{ url_for('main.search') }}?q={{ tag.strip() }}" class="tag">{{ tag.strip() }}</a>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            
+                            <div class="story-stats">
+                                <span class="stat">
+                                    Views {{ blog.views }}
+                                </span>
+                                <span class="stat">
+                                    Likes {{ blog.likes.count() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>{{ user.username }} hasn't published any stories yet.</p>
+                {% if current_user.is_authenticated and current_user.id == user.id %}
+                <a href="{{ url_for('main.editor') }}" class="btn btn-primary">
+                    Write Your First Story
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Avatar Editor Modal -->
+<div class="modal" id="avatarModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Change Avatar</h3>
+            <button class="modal-close" onclick="closeAvatarEditor()">Close</button>
+        </div>
+        <div class="modal-body">
+            <form id="avatarForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="avatarFile">Upload new image</label>
+                    <input type="file" id="avatarFile" name="avatar" accept="image/*" class="form-input">
+                    <p class="help-text">Recommended: Square image, max 2MB</p>
+                </div>
+                
+                <div class="current-avatar">
+                    <p>Current avatar:</p>
+                    <img src="{{ url_for('static', filename=avatar_url(user)) }}" 
+                         alt="Current avatar" class="avatar-preview">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeAvatarEditor()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bio Editor Modal -->
+<div class="modal" id="bioModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Edit Profile</h3>
+            <button class="modal-close" onclick="closeBioEditor()">Close</button>
+        </div>
+        <div class="modal-body">
+            <form id="bioForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" 
+                           value="{{ user.username }}" class="form-input" disabled>
+                    <p class="help-text">Username cannot be changed</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" name="bio" rows="4" class="form-input">{{ user.bio or '' }}</textarea>
+                    <p class="help-text">Tell people about yourself</p>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeBioEditor()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.profile-header {
+    display: flex;
+    gap: 3rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-avatar {
+    position: relative;
+}
+
+.avatar-xl {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--background-color);
+    box-shadow: var(--shadow-md);
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.avatar-edit-btn:hover {
+    transform: scale(1.1);
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.profile-bio {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    max-width: 600px;
+}
+
+.profile-stats {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.profile-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.content-section {
+    margin-bottom: 3rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.story-card {
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.story-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.story-image {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+}
+
+.story-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.story-card:hover .story-image img {
+    transform: scale(1.05);
+}
+
+.story-content {
+    padding: 1.5rem;
+}
+
+.story-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.story-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+}
+
+.story-excerpt {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.story-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.story-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.story-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background-color: var(--background-color);
+    border-radius: var(--border-radius-lg);
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.modal-close:hover {
+    background-color: var(--surface-color);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.avatar-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-top: 1rem;
+}
+
+.current-avatar {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background-color: var(--surface-color);
+    border-radius: var(--border-radius-lg);
+    border: 2px dashed var(--border-color);
+}
+
+.empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        gap: 1.5rem;
+        text-align: center;
+    }
+    
+    .profile-stats {
+        justify-content: center;
+    }
+    
+    .profile-actions {
+        justify-content: center;
+    }
+    
+    .stories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .story-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+}
+</style>
+
+<script>
+function openAvatarEditor() {
+    document.getElementById('avatarModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAvatarEditor() {
+    document.getElementById('avatarModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function openBioEditor() {
+    document.getElementById('bioModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBioEditor() {
+    document.getElementById('bioModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Avatar form submission
+document.getElementById('avatarForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('avatarFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select an image file.');
+        return;
+    }
+    
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, GIF, WebP).');
+        return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        alert('Image size must be less than 2MB.');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    try {
+        const response = await fetch('/api/update-avatar', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update avatar previews
+            document.querySelectorAll('.avatar-xl, .avatar-preview').forEach(img => {
+                img.src = data.avatar_url + '?t=' + new Date().getTime();
+            });
+            
+            // Update navbar avatar
+            const navAvatar = document.querySelector('.avatar-sm');
+            if (navAvatar) {
+                navAvatar.src = data.avatar_url + '?t=' + new Date().getTime();
+            }
+            
+            closeAvatarEditor();
+            showToast('Avatar updated successfully!', 'success');
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error('Avatar update error:', error);
+        showToast('Failed to update avatar', 'error');
+    }
+});
+
+// Bio form submission
+document.getElementById('bioForm')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const bio = document.getElementById('bio').value.trim();
+    
+    try {
+        const response = await fetch('/api/update-bio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ bio: bio }),
+            credentials: 'include'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update bio display
+            const bioElement = document.querySelector('.profile-bio');
+            if (bioElement) {
+                bioElement.textContent = bio || 'No bio yet.';
+            }
+            
+            closeBioEditor();
+            showToast('Profile updated successfully!', 'success');
+        } else {
+            throw new Error(data.error || 'Update failed');
+        }
+    } catch (error) {
+        console.error('Bio update error:', error);
+        showToast('Failed to update profile', 'error');
+    }
+});
+
+// Close modal when clicking outside
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            if (this.id === 'avatarModal') closeAvatarEditor();
+            if (this.id === 'bioModal') closeBioEditor();
+        }
+    });
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (document.getElementById('avatarModal').style.display === 'flex') {
+            closeAvatarEditor();
+        }
+        if (document.getElementById('bioModal').style.display === 'flex') {
+            closeBioEditor();
+        }
+    }
+});
+</script>
+{% endblock %}

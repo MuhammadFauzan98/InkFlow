@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel | InkFlow{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <h1 class="admin-title">Admin Dashboard</h1>
+    
+    <!-- Quick Stats -->
+    <div class="admin-stats">
+        <div class="admin-stat-card">
+            <div class="stat-number">{{ total_users }}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="stat-number">{{ total_blogs }}</div>
+            <div class="stat-label">Total Stories</div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="stat-number">{{ total_comments }}</div>
+            <div class="stat-label">Total Comments</div>
+        </div>
+        
+        <div class="admin-stat-card">
+            <div class="stat-number">{{ (total_blogs / total_users * 100)|round(1) if total_users > 0 else 0 }}%</div>
+            <div class="stat-label">Engagement Rate</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="admin-actions">
+        <a href="{{ url_for('admin.manage_users') }}" class="admin-action-btn">
+            <span>Manage Users</span>
+        </a>
+        <a href="{{ url_for('admin.manage_blogs') }}" class="admin-action-btn">
+            <span>Manage Stories</span>
+        </a>
+        <a href="{{ url_for('main.editor') }}" class="admin-action-btn">
+            <span>Write Story</span>
+        </a>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="admin-sections">
+        <!-- Recent Blogs -->
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>Recent Stories</h2>
+                <a href="{{ url_for('admin.manage_blogs') }}" class="section-link">View all</a>
+            </div>
+            
+            <div class="admin-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for blog in recent_blogs %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('main.blog', slug=blog.slug) if blog.status == 'published' else '#' }}">
+                                    {{ blog.title }}
+                                </a>
+                            </td>
+                            <td>{{ blog.author.username }}</td>
+                            <td>
+                                <span class="status-badge status-{{ blog.status }}">
+                                    {{ blog.status|title }}
+                                </span>
+                            </td>
+                            <td>{{ format_date(blog.created_at) }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <a href="{{ url_for('main.editor', blog_id=blog.id) }}" class="action-icon" title="Edit">
+                                        Edit
+                                    </a>
+                                    <form method="POST" action="{{ url_for('admin.feature_blog', blog_id=blog.id) }}" 
+                                          style="display: inline;">
+                                        <button type="submit" class="action-icon" title="{{ 'Unfeature' if blog.featured else 'Feature' }}">
+                                            {{ 'Unfeature' if blog.featured else 'Feature' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Users -->
+        <div class="admin-section">
+            <div class="section-header">
+                <h2>Recent Users</h2>
+                <a href="{{ url_for('admin.manage_users') }}" class="section-link">View all</a>
+            </div>
+            
+            <div class="admin-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in recent_users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="role-badge role-{{ user.role }}">
+                                    {{ user.role|title }}
+                                </span>
+                            </td>
+                            <td>{{ format_date(user.created_at) }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <form method="POST" action="{{ url_for('admin.update_role', user_id=user.id) }}" 
+                                          style="display: inline;">
+                                        <select name="role" onchange="this.form.submit()" class="role-select">
+                                            <option value="reader" {% if user.role == 'reader' %}selected{% endif %}>
+                                                Reader
+                                            </option>
+                                            <option value="writer" {% if user.role == 'writer' %}selected{% endif %}>
+                                                Writer
+                                            </option>
+                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>
+                                                Admin
+                                            </option>
+                                        </select>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Join InkFlow{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Join InkFlow</h1>
+            <p>Start your writing journey today</p>
+        </div>
+        
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" 
+                       required autofocus class="form-input">
+                <p class="help-text">This will be your public name</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" 
+                       required class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" 
+                       required class="form-input">
+                <p class="help-text">At least 8 characters</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" 
+                       required class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="terms" required>
+                    <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+        </form>
+        
+        <div class="auth-divider">
+            <span>or</span>
+        </div>
+
+        <div class="oauth-actions" style="text-align:center;">
+            <a href="{{ url_for('auth.google_login') }}" class="btn btn-outline btn-block" style="display:inline-flex; align-items:center; gap:8px; justify-content:center;">
+                <img src="https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png" alt="Google" style="width:20px; height:20px;"> Continue with Google
+            </a>
+        </div>
+        
+        <div class="auth-footer">
+            <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

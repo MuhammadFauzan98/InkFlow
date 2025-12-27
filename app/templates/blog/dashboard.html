@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | InkFlow{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-toolbar">
+        <button class="btn btn-outline" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    </div>
+    <!-- Stats Overview -->
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="stat-icon">All</div>
+            <div class="stat-content">
+                <h3>{{ total_blogs }}</h3>
+                <p>Total Stories</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">Pub</div>
+            <div class="stat-content">
+                <h3>{{ published_blogs }}</h3>
+                <p>Published</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">Likes</div>
+            <div class="stat-content">
+                <h3>{{ total_likes }}</h3>
+                <p>Total Likes</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">Views</div>
+            <div class="stat-content">
+                <h3>{{ total_views }}</h3>
+                <p>Total Views</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="{{ url_for('main.editor') }}" class="action-btn primary">
+            <span>Write New Story</span>
+        </a>
+        <a href="{{ url_for('main.my_blogs') }}" class="action-btn">
+            <span>My Stories</span>
+        </a>
+        <a href="{{ url_for('main.profile', username=current_user.username) }}" class="action-btn">
+            <span>My Profile</span>
+        </a>
+    </div>
+
+    <!-- Recent Blogs -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2>Recent Stories</h2>
+            <a href="{{ url_for('main.my_blogs') }}" class="section-link">View all</a>
+        </div>
+        
+        {% if user_blogs %}
+        <div class="recent-blogs-list">
+            {% for blog in user_blogs[:5] %}
+            <div class="recent-blog-item">
+                <div class="blog-info">
+                    <h4>
+                        <a href="{% if blog.status == 'published' %}{{ url_for('main.blog', slug=blog.slug) }}{% else %}{{ url_for('main.editor', blog_id=blog.id) }}{% endif %}">
+                            {{ blog.title }}
+                        </a>
+                    </h4>
+                    <div class="blog-meta">
+                        <span class="status-badge status-{{ blog.status }}">
+                            {{ blog.status|title }}
+                        </span>
+                        <span class="blog-date">{{ format_date(blog.updated_at) }}</span>
+                        <span class="blog-views">Views {{ blog.views }}</span>
+                        <span class="blog-likes">Likes {{ blog.likes.count() }}</span>
+                    </div>
+                </div>
+                <div class="blog-actions">
+                    <a href="{{ url_for('main.editor', blog_id=blog.id) }}" class="action-icon" title="Edit">
+                        Edit
+                    </a>
+                    {% if blog.status == 'published' %}
+                    <a href="{{ url_for('main.blog', slug=blog.slug) }}" class="action-icon" title="View">
+                        View
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>You haven't written any stories yet.</p>
+            <a href="{{ url_for('main.editor') }}" class="btn btn-primary">Write Your First Story</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bookmarks -->
+    {% if bookmarks %}
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2>Recently Saved</h2>
+        </div>
+        
+        <div class="bookmarks-list">
+            {% for bookmark in bookmarks %}
+            <div class="bookmark-item">
+                <h4>
+                    <a href="{{ url_for('main.blog', slug=bookmark.blog.slug) }}">
+                        {{ bookmark.blog.title }}
+                    </a>
+                </h4>
+                <div class="bookmark-meta">
+                    <span>By {{ bookmark.blog.author.username }}</span>
+                    <span>•</span>
+                    <span>{{ format_date(bookmark.created_at) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Writing Stats -->
+    <div class="dashboard-section">
+        <div class="section-header">
+            <h2>Writing Stats</h2>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h4>Most Popular Story</h4>
+                {% set most_viewed = user_blogs|sort(attribute='views', reverse=true)|first %}
+                {% if most_viewed %}
+                <p class="stat-value">{{ most_viewed.title }}</p>
+                <p class="stat-detail">{{ most_viewed.views }} views</p>
+                {% else %}
+                <p class="stat-value">No stories yet</p>
+                {% endif %}
+            </div>
+            
+            <div class="stat-item">
+                <h4>Most Liked Story</h4>
+                {% set most_liked = user_blogs|sort(attribute='likes.count', reverse=true)|first %}
+                {% if most_liked %}
+                <p class="stat-value">{{ most_liked.title }}</p>
+                <p class="stat-detail">{{ most_liked.likes.count() }} likes</p>
+                {% else %}
+                <p class="stat-value">No stories yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
