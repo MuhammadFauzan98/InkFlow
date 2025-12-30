@@ -59,7 +59,7 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 ## Run
 ```powershell
 & .venv\Scripts\Activate.ps1
-python app.py
+python wsgi.py
 ```
 App runs on http://localhost:5000 by default.
 
@@ -75,7 +75,7 @@ App runs on http://localhost:5000 by default.
 
 ## Project Structure
 ```
-app.py              # Entry
+wsgi.py             # Entry point (production)
 config.py           # Settings via env
 requirements.txt
 app/
@@ -94,6 +94,9 @@ app/
     base.html, index.html, auth/, blog/, admin/, user/
 instance/
   google_oauth.json (optional; created via config UI, not tracked)
+render.yaml         # Render deployment config
+build.sh            # Build script for Render
+RENDER_DEPLOYMENT.md # Deployment guide
 ```
 
 ## Notes on Secrets
